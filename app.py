@@ -638,7 +638,7 @@ def annual_costing():
 
         with center_column:
             df_for_second_pie = annual_df_mapped[['Department', 'Employee ID']].drop_duplicates()
-            department_counts = df_for_second_pie['Department Name'].value_counts()
+            department_counts = df_for_second_pie['Department'].value_counts()
             total_employees = department_counts.sum()
             department_percentages = (department_counts / total_employees) * 100
 
@@ -789,7 +789,7 @@ elif app_navigation == "Mapping Client Data":
                  'monthly_uploaded')
     
     mapping_data("annual", 
-                 ["Employee ID", "Total Payments", "Department Name","Employee Start Date", "Employee End Date"], 
+                 ["Employee ID", "Total Payments", "Department","Employee Start Date", "Employee End Date"], 
                  "annual_column_mapping",
                  'annual_uploaded')
     
