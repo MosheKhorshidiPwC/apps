@@ -255,8 +255,6 @@ def monthly_costing():
     else:
         st.error("No monthly data mapped. Please upload and map your data first.")
 
-     # insert step change 
-
     with st.expander("***Financial Analysis Year-over-Year***"):
         if 'monthly_df_mapped' not in st.session_state:
             st.warning("No monthly data mapped. Please upload and map your data first.")
@@ -393,7 +391,6 @@ def monthly_costing():
 
             # Calculate changes per employee
             filtered_data = filtered_data.sort_values(['Employee ID', 'Payment Date'])
-            
             # Calculate changes for each employee separately
             employee_changes = []
             for emp_id in filtered_data['Employee ID'].unique():
@@ -548,8 +545,6 @@ def monthly_costing():
                 "text/csv"
             )
 
-                
-    # insert step change end 
 
 def annual_costing(): 
 
@@ -564,8 +559,6 @@ def annual_costing():
     annual_df_mapped = st.session_state.get('annual_df_mapped')
 
     if annual_df_mapped is not None:
-        with st.expander("***Current Annual Mapped Data***"):
-            st.write(annual_df_mapped.head())
 
         # KPI calculations 
         left_column, center_column, right_column = st.columns(3)
@@ -611,10 +604,9 @@ def annual_costing():
             ]
         }
 
-            # Display the KPI summary dataframe
-            with st.expander("***Summary Table***"):
-                kpi_summary_df = pd.DataFrame(kpi_data)
-                st.write(kpi_summary_df)
+            st.subheader("Summary table")
+            kpi_summary_df = pd.DataFrame(kpi_data)
+            st.write(kpi_summary_df)
 
             # Proceed with other analyses, visualizations, or download options
         else:
@@ -650,7 +642,7 @@ def annual_costing():
             st.download_button("Download result for second pie", file_download_second_pie, "result_second_pie_chart.csv", "text/csv", key='download-second-pie-file')
 
         # Employee analysis based on percentage difference
-        st.subheader("Check Percent Difference")
+        st.subheader("Check Percent Difference for employee")
         annual_df_mapped['Percentage Difference'] = annual_df_mapped['Total Payments'].ffill().pct_change()
         employee_selection = st.selectbox('Choose employee to analyze:', options=annual_df_mapped['Employee ID'].unique(), placeholder='Choose employee number')
 
@@ -711,6 +703,301 @@ def annual_costing():
 
         excel_data = af.export_to_excel(samples_dict)
         st.download_button("Download Employee Samples", data=excel_data, file_name="employee_samples.xlsx", mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+        # insert change 
+
+    with st.expander("***Financial Analysis Year-over-Year***"):
+        if 'annual_df_mapped' not in st.session_state:
+            st.warning("No monthly data mapped. Please upload and map your data first.")
+            st.stop()
+
+        annual_df_mapped = st.session_state['annual_df_mapped']
+        annual_df_mapped['Employee Start Date'] = pd.to_datetime(annual_df_mapped['Employee Start Date'], errors='coerce')
+        annual_df_mapped['Year'] = annual_df_mapped['Employee Start Date'].dt.year
+        annual_df_mapped['Month'] = annual_df_mapped['Employee Start Date'].dt.month
+
+        # Quick Overview Section
+        st.subheader("📊 Quick Overview")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Total Years", annual_df_mapped['Year'].nunique())
+        with col2:
+            st.metric("Average Monthly Cost", f"${annual_df_mapped['Total Payments'].mean():,.2f}")
+        with col3:
+            st.metric("Total Employees", annual_df_mapped['Employee ID'].nunique())
+
+        # Analysis Tabs
+        analysis_tab, material_tab, trends_tab = st.tabs(["📈 Analysis", "🔍 Material Changes", "📊 Trends"])
+
+        with analysis_tab:
+            # Filter Section
+            st.subheader("Filter Data")
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                years = st.multiselect(
+                    "Select Years",
+                    options=sorted(annual_df_mapped['Year'].unique()),
+                    default=sorted(annual_df_mapped['Year'].unique())[-2:]
+                )
+                months = st.multiselect(
+                    "Select Months",
+                    options=range(1, 13),
+                    default=range(1, 13),
+                    format_func=lambda x: datetime.strptime(str(x), "%m").strftime("%B")
+                )
+                departments = st.multiselect(
+                    "Select Departments",
+                    options=annual_df_mapped['Department'].unique(),
+                    default=annual_df_mapped['Department'].unique()
+                )
+            
+            with col2:
+                employees = st.multiselect(
+                    "Select Employees",
+                    options=annual_df_mapped['Employee ID'].unique(),
+                    default=[]
+                )
+                metric = st.selectbox(
+                    "Select Metric",
+                    options=['Total Payments']
+                )
+
+            # Apply filters
+            filtered_data = annual_df_mapped.copy()
+            if years:
+                filtered_data = filtered_data[filtered_data['Year'].isin(years)]
+            if months:
+                filtered_data = filtered_data[filtered_data['Month'].isin(months)]
+            if departments:
+                filtered_data = filtered_data[filtered_data['Department'].isin(departments)]
+            if employees:
+                filtered_data = filtered_data[filtered_data['Employee ID'].isin(employees)]
+
+            # Display filtered data
+            st.subheader("Filtered Data")
+            st.dataframe(filtered_data, use_container_width=True)
+
+            # Summary Metrics
+            st.subheader("Summary Metrics")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Total", f"${filtered_data[metric].sum():,.2f}")
+            with col2:
+                st.metric("Average", f"${filtered_data[metric].mean():,.2f}")
+            with col3:
+                st.metric("Median", f"${filtered_data[metric].median():,.2f}")
+
+            # Trend Chart
+            st.subheader(f"{metric} Trend")
+            trend_data = filtered_data.groupby(['Year', 'Month'])[metric].sum().reset_index()
+            trend_data['Date'] = pd.to_datetime(trend_data[['Year', 'Month']].assign(DAY=1))
+            fig = px.line(trend_data, x='Date', y=metric, title=f"{metric} Trend Over Time",
+                         text=trend_data[metric].round(2).astype(str))
+            fig.update_traces(
+                textposition="top center",
+                textfont=dict(
+                    size=14,
+                    color='black',
+                    family="Arial Black"
+                )
+            )
+            fig.update_layout(
+                yaxis_title=f"Total {metric}",
+                xaxis_title="Date",
+                showlegend=True,
+                font=dict(size=14)
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+        with material_tab:
+            st.subheader("Material Change Analysis")
+            
+            # Analysis method selection
+            analysis_method = st.radio(
+                "Select Analysis Method",
+                ["Percentage Change", "Absolute Amount"],
+                horizontal=True
+            )
+
+            if analysis_method == "Percentage Change":
+                threshold = st.number_input(
+                    "Enter percentage threshold for material changes",
+                    min_value=0.0,
+                    max_value=100.0,
+                    value=10.0,
+                    step=0.1,
+                    format="%.1f"
+                )
+                threshold_type = "percentage"
+            else:
+                threshold = st.number_input(
+                    "Enter amount threshold in shekels",
+                    min_value=0.0,
+                    value=1000.0,
+                    step=100.0,
+                    format="%.0f"
+                )
+                threshold_type = "amount"
+
+            # Calculate changes per employee
+            filtered_data = filtered_data.sort_values(['Employee ID', 'Employee Start Date'])
+            
+            # Calculate changes for each employee separately
+            employee_changes = []
+            for emp_id in filtered_data['Employee ID'].unique():
+                emp_data = filtered_data[filtered_data['Employee ID'] == emp_id].copy()
+                emp_data['Change'] = emp_data[metric].pct_change() * 100
+                emp_data['Absolute Change'] = emp_data[metric].diff()
+                employee_changes.append(emp_data)
+            
+            # Combine all employee changes
+            all_changes = pd.concat(employee_changes)
+            
+            # Identify material changes
+            if threshold_type == "percentage":
+                material_changes = all_changes[abs(all_changes['Change']) > threshold]
+            else:
+                material_changes = all_changes[abs(all_changes['Absolute Change']) > threshold]
+
+            # Display material changes
+            st.subheader("Material Changes by Employee")
+            
+            if not material_changes.empty:
+                # Create tabs for each employee with material changes
+                employee_tabs = st.tabs([f"Employee {emp_id}" for emp_id in material_changes['Employee ID'].unique()])
+                
+                for tab, emp_id in zip(employee_tabs, material_changes['Employee ID'].unique()):
+                    with tab:
+                        emp_material_changes = material_changes[material_changes['Employee ID'] == emp_id]
+                        
+                        # Calculate summary statistics for this employee
+                        total_changes = len(emp_material_changes)
+                        avg_change = emp_material_changes['Change'].mean() if threshold_type == "percentage" else emp_material_changes['Absolute Change'].mean()
+                        
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.metric("Total Material Changes", total_changes)
+                        with col2:
+                            st.metric("Average Change", 
+                                    f"{avg_change:.2f}%" if threshold_type == "percentage" else f"₪{avg_change:,.2f}")
+                        
+                        # Style the dataframe
+                        def highlight_material_changes(row):
+                            if threshold_type == "percentage":
+                                change = row['Change']
+                            else:
+                                change = row['Absolute Change']
+                            
+                            if abs(change) > threshold:
+                                return ['background-color: #ffcccc'] * len(row)
+                            return [''] * len(row)
+
+                        styled_df = emp_material_changes.style.apply(highlight_material_changes, axis=1)
+                        st.dataframe(styled_df, use_container_width=True)
+                        
+                        # Add a line chart for this employee's changes
+                        fig = px.line(emp_material_changes, 
+                                    x='Employee Start Date', 
+                                    y=metric,
+                                    title=f"{metric} Trend for Employee {emp_id}",
+                                    text=emp_material_changes[metric].round(2).astype(str))
+                        fig.update_traces(
+                            textposition="top center",
+                            textfont=dict(
+                                size=14,
+                                color='black',
+                                family="Arial Black"
+                            )
+                        )
+                        fig.update_layout(
+                            yaxis_title=f"{metric}",
+                            xaxis_title="Date",
+                            showlegend=True,
+                            font=dict(size=14)
+                        )
+                        st.plotly_chart(fig, use_container_width=True)
+
+                # Download all material changes
+                st.download_button(
+                    "Download All Material Changes",
+                    material_changes.to_csv(index=False),
+                    "material_changes.csv",
+                    "text/csv"
+                )
+            else:
+                st.info("No material changes found based on the selected threshold.")
+
+        with trends_tab:
+            # Department Analysis
+            st.subheader("Department Analysis")
+            dept_data = filtered_data.groupby(['Year', 'Department'])[metric].sum().reset_index()
+            fig = px.bar(dept_data, x='Year', y=metric, color='Department', 
+                        title=f"{metric} by Department",
+                        text=dept_data[metric].round(2).astype(str))
+            fig.update_traces(
+                textposition="outside",
+                textfont=dict(
+                    size=14,
+                    color='black',
+                    family="Arial Black"
+                )
+            )
+            fig.update_layout(
+                yaxis_title=f"Total {metric}",
+                xaxis_title="Year",
+                showlegend=True,
+                uniformtext_minsize=14,
+                uniformtext_mode='hide',
+                font=dict(size=14)
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+            # Monthly Analysis
+            st.subheader("Monthly Analysis")
+            monthly_data = filtered_data.groupby('Month')[metric].mean().reset_index()
+            monthly_data['Month_Name'] = monthly_data['Month'].apply(lambda x: datetime.strptime(str(x), "%m").strftime("%B"))
+            fig = px.line(monthly_data, x='Month_Name', y=metric, 
+                         title=f"Average {metric} by Month",
+                         text=monthly_data[metric].round(2).astype(str))
+            fig.update_traces(
+                textposition="top center",
+                textfont=dict(
+                    size=14,
+                    color='black',
+                    family="Arial Black"
+                )
+            )
+            fig.update_layout(
+                yaxis_title=f"Average {metric}",
+                xaxis_title="Month",
+                showlegend=True,
+                xaxis={'categoryorder': 'array', 'categoryarray': [datetime.strptime(str(m), "%m").strftime("%B") for m in range(1, 13)],
+                       'tickfont': dict(size=14)},
+                font=dict(size=14)
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+        # Download Options
+        st.subheader("Download Data")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.download_button(
+                "Download Filtered Data",
+                filtered_data.to_csv(index=False),
+                "filtered_data.csv",
+                "text/csv"
+            )
+        with col2:
+            summary = filtered_data.groupby('Year')[metric].agg(['sum', 'mean', 'median']).reset_index()
+            st.download_button(
+                "Download Summary",
+                summary.to_csv(index=False),
+                "summary_stats.csv",
+                "text/csv"
+            )
+
+
 
 def employee_calculation():
     st.subheader("Employee Calculation Analysis")
