@@ -11,7 +11,7 @@ import numpy as np
 APP_VERSION = "0.0.0"
 
 # -- Set a page config and style -- 
-st.set_page_config(page_title='Gross Net Analysis WebApp',
+st.set_page_config(page_title=f'Gross Net Analysis WebApp',
                    page_icon=':bar_chart:',
                    layout='wide')
 
@@ -36,6 +36,7 @@ app_navigation_options = {"Home": 0, "Mapping Client Data": 1,
 
 
 with st.sidebar:
+    st.markdown(f"**App Version (Testing): {APP_VERSION}**")
     app_navigation = option_menu(
         menu_title='App Navigation',
         options=list(app_navigation_options.keys()),
