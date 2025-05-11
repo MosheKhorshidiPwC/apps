@@ -7,7 +7,8 @@ import openpyxl
 from datetime import datetime
 import numpy as np
 
-
+# Application version
+APP_VERSION = "0.0.0"
 
 # -- Set a page config and style -- 
 st.set_page_config(page_title='Gross Net Analysis WebApp',
@@ -25,8 +26,14 @@ st.markdown(app_css_page_style, unsafe_allow_html=True)
 
 # App navigation options
 app_navigation_options = {"Home": 0, "Mapping Client Data": 1, 
-                          "Monthly Costing": 2, "Annual Costing": 3, 
-                          "Employee Calculation": 4}
+                          "Monthly Costing": 2, "Annual Costing": 3}
+
+
+# # App navigation options
+# app_navigation_options = {"Home": 0, "Mapping Client Data": 1, 
+#                           "Monthly Costing": 2, "Annual Costing": 3, 
+#                           "Employee Calculation": 4}
+
 
 with st.sidebar:
     app_navigation = option_menu(
@@ -36,6 +43,7 @@ with st.sidebar:
                'bar-chart-fill', 'percent'],
         menu_icon='three-dots-vertical'
     )
+    
 
 # Initialize session state once
 def initialize_session_state():
@@ -63,45 +71,50 @@ def initialize_session_state():
 initialize_session_state()
 
 def home():
+    
     st.title("Welcome to the Gross Net Analysis WebApp")
+    
     st.markdown("""
 
-**Overview**
+            **Overview**
 
-Welcome to the future of employee cost analysis! Our Gross Net Analysis WebApp is designed to empower financial analysts, human resource managers, and business owners with robust insights into employee compensation dynamics. By seamlessly integrating data mapping, monthly and annual costing analysis, and employee-specific calculations, our application provides an all-encompassing platform for comprehensive financial data exploration.
+            Welcome to the future of employee cost analysis! Our Gross Net Analysis WebApp is designed to empower financial analysts, human resource managers, and business owners with robust insights into employee compensation dynamics. By seamlessly integrating data mapping, monthly and annual costing analysis, and employee-specific calculations, our application provides an all-encompassing platform for comprehensive financial data exploration.
 
-**Features**
+            **Features**
 
-- **Mapping Client Data:** Customize your data layout to ensure accurate analysis by mapping relevant columns for employee ID, payments, and department attributes. This feature helps tailor your datasets, making further analysis accurate and efficient.
-  
-- **Monthly Costing Analysis:** Delve into detailed monthly breakdowns of employee costs. Assess key metrics such as salary costs, work hours, and department distributions to better understand financial trends and identify cost-saving opportunities.
+            - **Mapping Client Data:** Customize your data layout to ensure accurate analysis by mapping relevant columns for employee ID, payments, and department attributes. This feature helps tailor your datasets, making further analysis accurate and efficient.
+            
+            - **Monthly Costing Analysis:** Delve into detailed monthly breakdowns of employee costs. Assess key metrics such as salary costs, work hours, and department distributions to better understand financial trends and identify cost-saving opportunities.
 
-- **Annual Costing Analysis:** Discover deeper insights from annual data. View aggregate payments, departmental financial allocations, and employee distribution. Our cutting-edge visualization tools allow you to visualize patterns, align budgetary forecasts, and communicate findings effectively.
+            - **Annual Costing Analysis:** Discover deeper insights from annual data. View aggregate payments, departmental financial allocations, and employee distribution. Our cutting-edge visualization tools allow you to visualize patterns, align budgetary forecasts, and communicate findings effectively.
 
-- **Employee Calculations:** Perform detailed per-employee financial assessments, estimating pension provisions, compensation funds, and educational contributions. Tailored calculations provide clarity on social security obligations, making it easier to uphold fiscal responsibilities.
+            - **Employee Calculations:** Perform detailed per-employee financial assessments, estimating pension provisions, compensation funds, and educational contributions. Tailored calculations provide clarity on social security obligations, making it easier to uphold fiscal responsibilities.
 
-**How to Use**
+            **How to Use**
 
-1. **Data Upload:** 
-   - Navigate to the sidebar and upload your data files in supported formats (.csv, .xls, .xlsx, .txt) using our intuitive file upload feature.
+            1. **Data Upload:** 
+            - Navigate to the sidebar and upload your data files in supported formats (.csv, .xls, .xlsx, .txt) using our intuitive file upload feature.
 
-2. **Mapping and Customization:**
-   - Customize your data for precise analysis. Use our mapping tools to align your uploaded data with the required fields for successful integration and exploration.
+            2. **Mapping and Customization:**
+            - Customize your data for precise analysis. Use our mapping tools to align your uploaded data with the required fields for successful integration and exploration.
 
-3. **Explore and Analyze:**
-   - Utilize the navigation menu to explore different analytical perspectives—monthly, annual, or employee-specific. Gain valuable insights using our interactive charts, downloadable reports, and tailored KPIs.
+            3. **Explore and Analyze:**
+            - Utilize the navigation menu to explore different analytical perspectives—monthly, annual, or employee-specific. Gain valuable insights using our interactive charts, downloadable reports, and tailored KPIs.
 
-4. **Download and Report:**
-   - Extract detailed reports and visual insights effortlessly. Use the download options to save analysis results for further offline processing and strategic planning.
+            4. **Download and Report:**
+            - Extract detailed reports and visual insights effortlessly. Use the download options to save analysis results for further offline processing and strategic planning.
 
-**Get Started Now**
+            **Get Started Now**
 
-We invite you to explore the world of data-driven decision-making. Let our WebApp transform the way you perceive employee costs. Dive deeper, analyze effectively, and optimize effortlessly.
+            We invite you to explore the world of data-driven decision-making. Let our WebApp transform the way you perceive employee costs. Dive deeper, analyze effectively, and optimize effortlessly.
 
-**Feedback and Support**
+            **Feedback and Support**
 
-Your feedback is invaluable to us. As we continue to enhance the capabilities of our application, please feel free to reach out with suggestions or inquiries. Together, let's make financial analysis an enlightening experience.
-""")
+            Your feedback is invaluable to us. As we continue to enhance the capabilities of our application, please feel free to reach out with suggestions or inquiries. Together, let's make financial analysis an enlightening experience.
+            
+            
+            
+            """)
 
 def mapping_data(file_key, expected_columns, mapping_key, uploaded_key):
     uploaded_file = st.file_uploader(f"**Upload file for {file_key}**", type=["csv", "xls", "xlsx", "txt"], key=file_key)
@@ -164,6 +177,14 @@ def mapping_data(file_key, expected_columns, mapping_key, uploaded_key):
     else:
         st.info(f"Please upload a valid {file_key} file to proceed with mapping.")
 
+def get_days_in_month(date):
+    # Get the last day of the month
+    if date.month == 12:
+        last_day = pd.Timestamp(date.year + 1, 1, 1) - pd.Timedelta(days=1)
+    else:
+        last_day = pd.Timestamp(date.year, date.month + 1, 1) - pd.Timedelta(days=1)
+    return last_day.day
+
 def monthly_costing():
     st.subheader("Monthly Costing Analysis")
 
@@ -173,8 +194,15 @@ def monthly_costing():
     
     monthly_df_mapped = st.session_state['monthly_df_mapped']
 
+    # Convert Payment Date to datetime if it's not already
+    monthly_df_mapped['Payment Date'] = pd.to_datetime(monthly_df_mapped['Payment Date'])
+    
+    # Add days in month column
+    monthly_df_mapped['Days in Month'] = monthly_df_mapped['Payment Date'].apply(get_days_in_month)
+
     monthly_df_mapped["Salary Cost"] = af.clean_and_convert_to_float(monthly_df_mapped["Salary Cost"])
     monthly_df_mapped["Week Work Hours"] = af.clean_and_convert_to_float(monthly_df_mapped['Week Work Hours'])
+    monthly_df_mapped["Base Salary"] = af.clean_and_convert_to_float(monthly_df_mapped["Base Salary"])
 
     # KPI calculations
     total_records = len(monthly_df_mapped)
@@ -191,6 +219,216 @@ def monthly_costing():
     with center_column:
         st.subheader(f'Average Employee Cost: {avg_emp_cost:,.2f}')
         st.subheader(f'Median Employee Cost: {mid_emp_cost:,.2f}')
+
+    # Add new expander for vacation provision calculations
+    with st.expander("***Vacation Day Provision Calculator***"):
+        st.subheader("Vacation Day Provision Calculator")
+        
+        # Get user input for provision percentage
+        provision_percentage = st.number_input(
+            "Enter Provision Percentage (e.g., 0.25 for 25%)",
+            min_value=0.0,
+            max_value=1.0,
+            value=0.25,
+            step=0.01,
+            format="%.2f"
+        )
+        
+        # Add option to filter data
+        st.subheader("Optional: Filter Data")
+        use_filters = st.checkbox("Use Filters", value=False)
+        
+        filtered_df = monthly_df_mapped.copy()
+        
+        if use_filters:
+            # Get all available columns from the dataframe
+            available_columns = filtered_df.columns.tolist()
+            
+            # Add "Select All" option
+            all_columns = ['Select All'] + available_columns
+            
+            # Let user select which columns to filter
+            selected_filter_columns = st.multiselect(
+                'Select Columns to Filter',
+                options=all_columns,
+                default=[]
+            )
+            
+            # Handle "Select All" option
+            if 'Select All' in selected_filter_columns:
+                selected_filter_columns = available_columns
+            
+            if selected_filter_columns:
+                # Create columns for filters
+                filter_col1, filter_col2 = st.columns(2)
+                
+                with filter_col1:
+                    for col in selected_filter_columns[:len(selected_filter_columns)//2]:
+                        if filtered_df[col].dtype in ['object', 'string']:
+                            # Categorical filters
+                            unique_values = ['All'] + sorted(filtered_df[col].unique().tolist())
+                            selected_value = st.selectbox(f'Filter by {col}', unique_values)
+                            if selected_value != 'All':
+                                filtered_df = filtered_df[filtered_df[col] == selected_value]
+                        
+                        elif filtered_df[col].dtype == 'datetime64[ns]':
+                            # Date filter
+                            min_date = filtered_df[col].min()
+                            max_date = filtered_df[col].max()
+                            date_range = st.date_input(
+                                f'Filter by {col} Range',
+                                value=(min_date, max_date),
+                                min_value=min_date,
+                                max_value=max_date
+                            )
+                            if len(date_range) == 2:
+                                filtered_df = filtered_df[
+                                    (filtered_df[col].dt.date >= date_range[0]) &
+                                    (filtered_df[col].dt.date <= date_range[1])
+                                ]
+                        
+                        else:
+                            # Numeric filters with number inputs
+                            min_val = float(filtered_df[col].min())
+                            max_val = float(filtered_df[col].max())
+                            
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                min_input = st.number_input(
+                                    f'Min {col}',
+                                    min_value=min_val,
+                                    max_value=max_val,
+                                    value=min_val,
+                                    step=1.0
+                                )
+                            with col2:
+                                max_input = st.number_input(
+                                    f'Max {col}',
+                                    min_value=min_val,
+                                    max_value=max_val,
+                                    value=max_val,
+                                    step=1.0
+                                )
+                            
+                            filtered_df = filtered_df[
+                                (filtered_df[col] >= min_input) &
+                                (filtered_df[col] <= max_input)
+                            ]
+                
+                with filter_col2:
+                    for col in selected_filter_columns[len(selected_filter_columns)//2:]:
+                        if filtered_df[col].dtype in ['object', 'string']:
+                            # Categorical filters
+                            unique_values = ['All'] + sorted(filtered_df[col].unique().tolist())
+                            selected_value = st.selectbox(f'Filter by {col}', unique_values)
+                            if selected_value != 'All':
+                                filtered_df = filtered_df[filtered_df[col] == selected_value]
+                        
+                        elif filtered_df[col].dtype == 'datetime64[ns]':
+                            # Date filter
+                            min_date = filtered_df[col].min()
+                            max_date = filtered_df[col].max()
+                            date_range = st.date_input(
+                                f'Filter by {col} Range',
+                                value=(min_date, max_date),
+                                min_value=min_date,
+                                max_value=max_date
+                            )
+                            if len(date_range) == 2:
+                                filtered_df = filtered_df[
+                                    (filtered_df[col].dt.date >= date_range[0]) &
+                                    (filtered_df[col].dt.date <= date_range[1])
+                                ]
+                        
+                        else:
+                            # Numeric filters with number inputs
+                            min_val = float(filtered_df[col].min())
+                            max_val = float(filtered_df[col].max())
+                            
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                min_input = st.number_input(
+                                    f'Min {col}',
+                                    min_value=min_val,
+                                    max_value=max_val,
+                                    value=min_val,
+                                    step=1.0
+                                )
+                            with col2:
+                                max_input = st.number_input(
+                                    f'Max {col}',
+                                    min_value=min_val,
+                                    max_value=max_val,
+                                    value=max_val,
+                                    step=1.0
+                                )
+                            
+                            filtered_df = filtered_df[
+                                (filtered_df[col] >= min_input) &
+                                (filtered_df[col] <= max_input)
+                            ]
+        
+        # Get user input for sample size
+        max_records = len(filtered_df)
+        sample_size = st.number_input(
+            "Enter Number of Sample Records to Display",
+            min_value=1,
+            max_value=max_records,
+            value=min(5, max_records),
+            step=1
+        )
+        
+        # Calculate vacation provision
+        filtered_df['Vacation Provision'] = (
+            filtered_df['Base Salary'] / 
+            filtered_df['Days in Month'] * 
+            provision_percentage + 1
+        )
+        
+        # Display sample of calculations based on user input
+        st.write(f"Sample Calculations (First {sample_size} records):")
+        
+        # Let user select which columns to display
+        display_columns = st.multiselect(
+            'Select Columns to Display',
+            options=['Select All'] + filtered_df.columns.tolist(),
+            default=['Employee ID', 'Employee Name', 'Payment Date','Base Salary', 'Days in Month', 'Vacation Provision']
+        )
+        
+        # Handle "Select All" option for display columns
+        if 'Select All' in display_columns:
+            display_columns = filtered_df.columns.tolist()
+        
+        if display_columns:
+            sample_df = filtered_df[display_columns].head(sample_size)
+            st.dataframe(sample_df)
+        else:
+            st.warning("Please select at least one column to display")
+        
+        # Add explanation of calculation
+        st.markdown("""
+        **Calculation Formula:**
+        ```
+        Vacation Provision = (Base Salary / Days in Month) * Provision Percentage + 1
+        ```
+        
+        **Example:**
+        - Base Salary: 10,000
+        - Days in Month: 30
+        - Provision Percentage: 0.25
+        - Calculation: (10,000 / 30) * 0.25 + 1 = 84.33
+        """)
+        
+        # Add download button for the calculations
+        if display_columns:
+            csv = sample_df.to_csv(index=False)
+            st.download_button(
+                "Download Sample Calculations",
+                csv,
+                "vacation_provision_sample.csv",
+                "text/csv",
+                key='download-vacation-provision'
+            )
 
     # Working hours condition
     try:
@@ -999,71 +1237,71 @@ def annual_costing():
 
 
 
-def employee_calculation():
-    st.subheader("Employee Calculation Analysis")
+# def employee_calculation():
+#     st.subheader("Employee Calculation Analysis")
 
-    # Ensure mapping has been completed before proceeding
-    if not st.session_state.get('employee_mapping_done', False):
-        st.warning("Please complete the employee data mapping before proceeding.")
-        st.stop()
+#     # Ensure mapping has been completed before proceeding
+#     if not st.session_state.get('employee_mapping_done', False):
+#         st.warning("Please complete the employee data mapping before proceeding.")
+#         st.stop()
 
-    # Retrieve the mapped DataFrame from session state
-    employee_df_mapped = st.session_state.get('employee_df_mapped')
+#     # Retrieve the mapped DataFrame from session state
+#     employee_df_mapped = st.session_state.get('employee_df_mapped')
 
-    if employee_df_mapped is not None:
-        try:
-            # Preview the mapped data
-            with st.expander("***Click to see file data preview***", expanded=True):
-                st.dataframe(employee_df_mapped, use_container_width=True)
+#     if employee_df_mapped is not None:
+#         try:
+#             # Preview the mapped data
+#             with st.expander("***Click to see file data preview***", expanded=True):
+#                 st.dataframe(employee_df_mapped, use_container_width=True)
 
-            # Select employee for detailed analysis
-            filter_emp_number = st.selectbox("Choose employee to analyze:", employee_df_mapped['Employee ID'].unique())
+#             # Select employee for detailed analysis
+#             filter_emp_number = st.selectbox("Choose employee to analyze:", employee_df_mapped['Employee ID'].unique())
 
-            with st.expander("***Click to see selected employee***"):
-                df_filtered = employee_df_mapped[employee_df_mapped['Employee ID'] == filter_emp_number]
-                st.table(df_filtered)
+#             with st.expander("***Click to see selected employee***"):
+#                 df_filtered = employee_df_mapped[employee_df_mapped['Employee ID'] == filter_emp_number]
+#                 st.table(df_filtered)
 
-                # Calculations for various provisions
-                pension_multi_6 = 0.065
-                pension_multi_7 = 0.075
-                comp_multi = 0.0833
-                edu_multi = 0.075
+#                 # Calculations for various provisions
+#                 pension_multi_6 = 0.065
+#                 pension_multi_7 = 0.075
+#                 comp_multi = 0.0833
+#                 edu_multi = 0.075
 
-                ss = 'More details needed for the calculation'
-                gemel = df_filtered['Total Gross Salary'] * pension_multi_6
-                gemel1 = df_filtered['Total Gross Salary'] * pension_multi_7
-                comp = df_filtered['Total Gross Salary'] * comp_multi
-                edu = df_filtered['Total Gross Salary'] * edu_multi
+#                 ss = 'More details needed for the calculation'
+#                 gemel = df_filtered['Total Gross Salary'] * pension_multi_6
+#                 gemel1 = df_filtered['Total Gross Salary'] * pension_multi_7
+#                 comp = df_filtered['Total Gross Salary'] * comp_multi
+#                 edu = df_filtered['Total Gross Salary'] * edu_multi
 
-                text = f"""
-                Calculation of pension provisions for the selected employee:
+#                 text = f"""
+#                 Calculation of pension provisions for the selected employee:
 
-                Value for 6.5%: **{gemel.values[0]:,.2f}**
+#                 Value for 6.5%: **{gemel.values[0]:,.2f}**
 
-                Value for 7.5%: **{gemel1.values[0]:,.2f}**
+#                 Value for 7.5%: **{gemel1.values[0]:,.2f}**
 
-                Calculation of Compensation for the selected employee: 
+#                 Calculation of Compensation for the selected employee: 
 
-                Value: **{comp.values[0]:,.2f}**
+#                 Value: **{comp.values[0]:,.2f}**
                 
-                Calculation of Education Fund for the selected employee: 
+#                 Calculation of Education Fund for the selected employee: 
 
-                Value: **{edu.values[0]:,.2f}**
+#                 Value: **{edu.values[0]:,.2f}**
 
-                Calculation of Social Security for the selected employee: 
+#                 Calculation of Social Security for the selected employee: 
 
-                Value: **{ss}**
+#                 Value: **{ss}**
 
-                Total funding for 6.5%: **{sum(gemel + comp + edu):,.2f}**
+#                 Total funding for 6.5%: **{sum(gemel + comp + edu):,.2f}**
 
-                Total funding for 7.5%: **{sum(gemel1 + comp + edu):,.2f}**
-                """
-                st.success(text)
+#                 Total funding for 7.5%: **{sum(gemel1 + comp + edu):,.2f}**
+#                 """
+#                 st.success(text)
 
-        except Exception as e:
-            st.error(f"An error occurred during the calculation: {e}")
-    else:
-        st.info("No mapped data available. Please upload and map your employee data file.")
+#         except Exception as e:
+#             st.error(f"An error occurred during the calculation: {e}")
+#     else:
+#         st.info("No mapped data available. Please upload and map your employee data file.")
 
 # Main app navigation
 if app_navigation == "Home":
@@ -1071,7 +1309,7 @@ if app_navigation == "Home":
 elif app_navigation == "Mapping Client Data":
     
     mapping_data("monthly", 
-                 ["Employee ID", "Hourly Rate", "Salary Cost", "Week Work Hours", "Department","Payment Date","Salary","Income Tax Deduction","National Insurance"], 
+                 ["Employee ID", "Employee Name", "Base Salary","Hourly Rate", "Salary Cost", "Week Work Hours", "Department","Payment Date","Salary","Income Tax Deduction","National Insurance"], 
                  "monthly_column_mapping",
                  'monthly_uploaded')
     
@@ -1089,5 +1327,5 @@ elif app_navigation == "Monthly Costing":
     monthly_costing()
 elif app_navigation == "Annual Costing":
     annual_costing()
-elif app_navigation == "Employee Calculation":
-    employee_calculation()
+# elif app_navigation == "Employee Calculation":
+#     employee_calculation()
