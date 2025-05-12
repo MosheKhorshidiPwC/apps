@@ -79,7 +79,7 @@ def home():
 
             **Overview**
 
-            Welcome to the future of employee cost analysis! Our Gross Net Analysis WebApp is designed to empower financial analysts, human resource managers, and business owners with robust insights into employee compensation dynamics. By seamlessly integrating data mapping, monthly and annual costing analysis, and employee-specific calculations, our application provides an all-encompassing platform for comprehensive financial data exploration.
+            Welcome to employee cost analysis! Our Gross Net Analysis WebApp is designed to empower financial analysts, human resource managers, and business owners with robust insights into employee compensation dynamics. By seamlessly integrating data mapping, monthly and annual costing analysis, and employee-specific calculations, our application provides an all-encompassing platform for comprehensive financial data exploration.
 
             **Features**
 
@@ -220,6 +220,7 @@ def monthly_costing():
     with center_column:
         st.subheader(f'Average Employee Cost: {avg_emp_cost:,.2f}')
         st.subheader(f'Median Employee Cost: {mid_emp_cost:,.2f}')
+        
 
     # Add new expander for vacation provision calculations
     with st.expander("***Vacation Day Provision Calculator***"):
@@ -244,6 +245,7 @@ def monthly_costing():
         if use_filters:
             # Get all available columns from the dataframe
             available_columns = filtered_df.columns.tolist()
+            filtered_df['Employee ID'] = filtered_df['Employee ID'].astype("string") 
             
             # Add "Select All" option
             all_columns = ['Select All'] + available_columns
@@ -267,10 +269,10 @@ def monthly_costing():
                     for col in selected_filter_columns[:len(selected_filter_columns)//2]:
                         if filtered_df[col].dtype in ['object', 'string']:
                             # Categorical filters
-                            unique_values = ['All'] + sorted(filtered_df[col].unique().tolist())
-                            selected_value = st.selectbox(f'Filter by {col}', unique_values)
-                            if selected_value != 'All':
-                                filtered_df = filtered_df[filtered_df[col] == selected_value]
+                            unique_values = filtered_df[col].unique().tolist()
+                            selected_values = st.multiselect(f'Filter by {col}', unique_values, default=unique_values)
+                            if selected_values:
+                                filtered_df = filtered_df[filtered_df[col].isin(selected_values)]
                         
                         elif filtered_df[col].dtype == 'datetime64[ns]':
                             # Date filter
@@ -289,6 +291,8 @@ def monthly_costing():
                                 ]
                         
                         else:
+                            
+                            
                             # Numeric filters with number inputs
                             min_val = float(filtered_df[col].min())
                             max_val = float(filtered_df[col].max())
@@ -320,10 +324,10 @@ def monthly_costing():
                     for col in selected_filter_columns[len(selected_filter_columns)//2:]:
                         if filtered_df[col].dtype in ['object', 'string']:
                             # Categorical filters
-                            unique_values = ['All'] + sorted(filtered_df[col].unique().tolist())
-                            selected_value = st.selectbox(f'Filter by {col}', unique_values)
-                            if selected_value != 'All':
-                                filtered_df = filtered_df[filtered_df[col] == selected_value]
+                            unique_values = filtered_df[col].unique().tolist() 
+                            selected_values = st.multiselect(f'Filter by {col}', unique_values, default=unique_values[0])
+                            if selected_values:
+                                filtered_df = filtered_df[filtered_df[col].isin(selected_values)]
                         
                         elif filtered_df[col].dtype == 'datetime64[ns]':
                             # Date filter
@@ -383,7 +387,7 @@ def monthly_costing():
         filtered_df['Vacation Provision'] = (
             filtered_df['Base Salary'] / 
             filtered_df['Days in Month'] * 
-            provision_percentage + 1
+            (provision_percentage + 1)
         )
         
         # Display sample of calculations based on user input
@@ -410,14 +414,14 @@ def monthly_costing():
         st.markdown("""
         **Calculation Formula:**
         ```
-        Vacation Provision = (Base Salary / Days in Month) * Provision Percentage + 1
+        Vacation Provision = (Base Salary / Days in Month) * (Provision Percentage + 1)
         ```
         
         **Example:**
         - Base Salary: 10,000
         - Days in Month: 30
         - Provision Percentage: 0.25
-        - Calculation: (10,000 / 30) * 0.25 + 1 = 84.33
+        - Calculation: (10,000 / 30) * (0.25 + 1) = 416.67
         """)
         
         # Add download button for the calculations
@@ -432,30 +436,34 @@ def monthly_costing():
             )
 
     # Working hours condition
-    try:
-        st.write("##")
-        st.subheader("Insert condition on working hours")
-        condition_input = float(st.number_input("",step=1))
-        df_filtered = monthly_df_mapped[monthly_df_mapped['Week Work Hours'] < condition_input]
-        chart_data = df_filtered.groupby('Department')['Week Work Hours'].count()
+
+    with st.expander("***working hours analysis***"):
+
+        try:
+            #st.write("##")
+            #st.markdown("Insert condition on working hours")
+            condition_input = float(st.number_input("**Insert condition on working hours**",step=1))
+            df_filtered = monthly_df_mapped[monthly_df_mapped['Week Work Hours'] > condition_input]
+            chart_data = df_filtered.groupby('Department')['Week Work Hours'].count()
          
-        with st.expander("***See Bar Chart visual***"):
+            st.subheader("***See Bar Chart visual (Insert condition first)***")
             st.bar_chart(chart_data)
 
-        # Visualization of filtered data
-        with st.expander("***Click to see the visual related population***"):
+            # Visualization of filtered data
+            st.subheader("***Click to see the visual related population***")
             st.data_editor(df_filtered, num_rows="dynamic")
 
             filtered_data = {
                 "Result Data": df_filtered
             }
 
-            # Download filtered results
+                # Download filtered results
             excel_data = af.export_to_excel(filtered_data)
             st.download_button("Download Result", data=excel_data, file_name="Monthly_Result.xlsx", mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
-    except ValueError:
-        st.info("**Insert a number to continue**", icon='🔄')
+        except ValueError:
+        
+            st.info("**Insert a number to continue**", icon='🔄')
 
         # Assume the user has uploaded data and loaded it into session state
     if 'monthly_df_mapped' in st.session_state:
@@ -476,21 +484,22 @@ def monthly_costing():
             'Amount': [total_salaries, total_income_tax, total_national_insurance]
         }
         summary_df = pd.DataFrame(summary_data)
-
+        summary_df = summary_df.style.format({'Amount': '{:,}'})
+        
         # Display the summary table
         with st.expander("***December Payment Summary***"):
-            st.markdown("### December Payment Summary")
-            st.dataframe(summary_df)
+             st.markdown("### December Payment Summary")
+             st.dataframe(summary_df)
 
             # Export to Excel
-            december_samples_dict = {
+             december_samples_dict = {
                 "Relevant December Data": december_data,
                 "December Payment Summary": summary_df,
-            }
+             } 
 
             # Export button
-            excel_data = af.export_to_excel(december_samples_dict)
-            st.download_button("Download December Payment Summary", data=excel_data, file_name="december_payment_summary.xlsx", mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+             excel_data = af.export_to_excel(december_samples_dict)
+             st.download_button("Download December Payment Summary", data=excel_data, file_name="december_payment_summary.xlsx", mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     else:
         st.error("No monthly data mapped. Please upload and map your data first.")
 
@@ -845,7 +854,7 @@ def annual_costing():
 
             st.subheader("Summary table")
             kpi_summary_df = pd.DataFrame(kpi_data)
-            st.write(kpi_summary_df)
+            st.write(kpi_summary_df.style.format({'KPI Number':'{:,}'}))
 
             # Proceed with other analyses, visualizations, or download options
         else:
@@ -879,71 +888,77 @@ def annual_costing():
             st.plotly_chart(fig)
             file_download_second_pie = af.convert_df(department_percentages)
             st.download_button("Download result for second pie", file_download_second_pie, "result_second_pie_chart.csv", "text/csv", key='download-second-pie-file')
-
+        
+        with st.expander("***Check Percent Difference for employee***"):
         # Employee analysis based on percentage difference
-        st.subheader("Check Percent Difference for employee")
-        annual_df_mapped['Percentage Difference'] = annual_df_mapped['Total Payments'].ffill().pct_change()
-        employee_selection = st.selectbox('Choose employee to analyze:', options=annual_df_mapped['Employee ID'].unique(), placeholder='Choose employee number')
+            st.subheader("Check Percent Difference for employee")
+            annual_df_mapped['Percentage Difference'] = annual_df_mapped['Total Payments'].ffill().pct_change()
+            employee_selection = st.selectbox('Choose employee to analyze:', options=annual_df_mapped['Employee ID'].unique(), placeholder='Choose employee number')
 
-        df_for_emp_analysis = annual_df_mapped[['Employee ID', 'Percentage Difference', 'Total Payments']]
-        df_filtered = df_for_emp_analysis[df_for_emp_analysis['Employee ID'] == employee_selection]
-        df_filtered = df_filtered.rename_axis('Row Number in File', axis=0)
-        df_filtered['Table_Row_Number'] = df_filtered.reset_index().index + 1
+            df_for_emp_analysis = annual_df_mapped[['Employee ID', 'Percentage Difference', 'Total Payments']]
+            df_filtered = df_for_emp_analysis[df_for_emp_analysis['Employee ID'] == employee_selection]
+            df_filtered = df_filtered.rename_axis('Row Number in File', axis=0)
+            df_filtered['Table_Row_Number'] = df_filtered.reset_index().index + 1
 
-        with st.expander("***See employee related analysis***"):
+            st.subheader("***See employee related analysis***")
             st.table(df_filtered[['Table_Row_Number', 'Employee ID', 'Total Payments', 'Percentage Difference']])
             df_chart = df_filtered.set_index('Table_Row_Number')[['Total Payments']]
             st.bar_chart(df_chart, use_container_width=True)
             st.line_chart(df_chart)
 
         # Ranking employees based on salary
-        st.subheader("Highest Ranking Employee Annual Salaries")
+        
+        
         try:
-            ranked_df = annual_df_mapped.groupby('Employee ID')['Total Payments'].max().reset_index()
-            ranked_df = ranked_df.sort_values(by='Total Payments', ascending=False).reset_index(drop=True)
-            ranked_df['Rank'] = range(1, len(ranked_df) + 1)
-            limit_rank = st.selectbox("Choose rank Size/Range", options=ranked_df['Rank'], placeholder="choose rank range")
 
             with st.expander("***Click to see employee salary ranking***"):
+
+                st.subheader("Highest Ranking Employee Annual Salaries")
+
+                ranked_df = annual_df_mapped.groupby('Employee ID')['Total Payments'].max().reset_index()
+                ranked_df = ranked_df.sort_values(by='Total Payments', ascending=False).reset_index(drop=True)
+                ranked_df['Rank'] = range(1, len(ranked_df) + 1)
+                limit_rank = st.selectbox("Choose rank Size/Range", options=ranked_df['Rank'], placeholder="choose rank range")
                 ranked_df_filtered = ranked_df[ranked_df['Rank'] <= limit_rank]
                 st.table(ranked_df_filtered[['Rank', 'Employee ID', 'Total Payments']])
                 st.bar_chart(ranked_df_filtered.set_index('Rank')['Total Payments'])
                 ranking_file_download = af.convert_df(ranked_df_filtered)
                 st.download_button("Download ranking result", ranking_file_download, "ranking_result.csv", "text/csv", key='download-ranking-file')
+        
         except Exception as e:
             st.info("Result will be presented after uploading a data file or on error.")
 
-        # New functionality for employee categorization and sampling
-        st.subheader("Employee Sampling Based on Status")
+        with st.expander("***Employee Sampling Based on Status***"):
+            # New functionality for employee categorization and sampling
+            st.subheader("Employee Sampling Based on Status")
 
-        # Categorizing employees based on status
-        year_end = pd.Timestamp(year=pd.to_datetime('today').year, month=12, day=31)
-        active_employees = annual_df_mapped[annual_df_mapped['Employee End Date'].isna()]
-        left_employees = annual_df_mapped[annual_df_mapped['Employee End Date'].notna() & (annual_df_mapped['Employee End Date'] <= year_end)]
-        new_employees = annual_df_mapped[annual_df_mapped['Employee Start Date'] > year_end.replace(year=year_end.year - 1)]
+            # Categorizing employees based on status
+            year_end = pd.Timestamp(year=pd.to_datetime('today').year, month=12, day=31)
+            active_employees = annual_df_mapped[annual_df_mapped['Employee End Date'].isna()]
+            left_employees = annual_df_mapped[annual_df_mapped['Employee End Date'].notna() & (annual_df_mapped['Employee End Date'] <= year_end)]
+            new_employees = annual_df_mapped[annual_df_mapped['Employee Start Date'] > year_end.replace(year=year_end.year - 1)]
 
-        # Sampling input
-        st.subheader("Specify Sample Sizes")
-        sample_active = st.number_input("Number of samples from active employees", min_value=0, value=5)
-        sample_left = st.number_input("Number of samples from employees who left", min_value=0, value=5)
-        sample_new = st.number_input("Number of samples from new employees", min_value=0, value=5)
+            # Sampling input
+            st.subheader("Specify Sample Sizes")
+            sample_active = st.number_input("Number of samples from active employees", min_value=0, value=5)
+            sample_left = st.number_input("Number of samples from employees who left", min_value=0, value=5)
+            sample_new = st.number_input("Number of samples from new employees", min_value=0, value=5)
 
-        # Sampling dataframes
-        sampled_active = active_employees.sample(min(sample_active, len(active_employees)))
-        sampled_left = left_employees.sample(min(sample_left, len(left_employees)))
-        sampled_new = new_employees.sample(min(sample_new, len(new_employees)))
+            # Sampling dataframes
+            sampled_active = active_employees.sample(min(sample_active, len(active_employees)))
+            sampled_left = left_employees.sample(min(sample_left, len(left_employees)))
+            sampled_new = new_employees.sample(min(sample_new, len(new_employees)))
 
-        # Export to Excel
-        samples_dict = {
-            "Active Employees": sampled_active,
-            "Left Employees": sampled_left,
-            "New Employees": sampled_new
-        }
+            # Export to Excel
+            samples_dict = {
+                "Active Employees": sampled_active,
+                "Left Employees": sampled_left,
+                "New Employees": sampled_new
+            }
 
-        excel_data = af.export_to_excel(samples_dict)
-        st.download_button("Download Employee Samples", data=excel_data, file_name="employee_samples.xlsx", mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            excel_data = af.export_to_excel(samples_dict)
+            st.download_button("Download Employee Samples", data=excel_data, file_name="employee_samples.xlsx", mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
-        # insert change 
 
     with st.expander("***Financial Analysis Year-over-Year***"):
         if 'annual_df_mapped' not in st.session_state:
@@ -1305,6 +1320,8 @@ def annual_costing():
 #         st.info("No mapped data available. Please upload and map your employee data file.")
 
 # Main app navigation
+
+
 if app_navigation == "Home":
     home()
 elif app_navigation == "Mapping Client Data":
@@ -1319,10 +1336,10 @@ elif app_navigation == "Mapping Client Data":
                  "annual_column_mapping",
                  'annual_uploaded')
     
-    mapping_data("employee", 
-                 ["Employee ID", "Total Gross Salary", "Total Employee Cost"], 
-                 "employee_column_mapping",
-                 'employee_uploaded')
+    # mapping_data("employee", 
+    #              ["Employee ID", "Total Gross Salary", "Total Employee Cost"], 
+    #              "employee_column_mapping",
+    #              'employee_uploaded')
     
 elif app_navigation == "Monthly Costing":
     monthly_costing()
