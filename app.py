@@ -511,7 +511,11 @@ def monthly_costing():
         monthly_df_mapped = st.session_state['monthly_df_mapped']
         monthly_df_mapped['Payment Date'] = pd.to_datetime(monthly_df_mapped['Payment Date'], errors='coerce')
         monthly_df_mapped['Year'] = monthly_df_mapped['Payment Date'].dt.year
+        # Replace NaN values in Year with a default value, e.g., 0 (or another appropriate placeholder)
+        monthly_df_mapped['Year'] = monthly_df_mapped['Year'].fillna(0).astype(int)
         monthly_df_mapped['Month'] = monthly_df_mapped['Payment Date'].dt.month
+        # Replace NaN values in Month with a default value, e.g., 0 (or another appropriate placeholder)
+        monthly_df_mapped['Month'] = monthly_df_mapped['Month'].fillna(0).astype(int)
 
         # Quick Overview Section
         st.subheader("📊 Quick Overview")
@@ -752,7 +756,8 @@ def monthly_costing():
             # Monthly Analysis
             st.subheader("Monthly Analysis")
             monthly_data = filtered_data.groupby('Month')[metric].mean().reset_index()
-            monthly_data['Month_Name'] = monthly_data['Month'].apply(lambda x: datetime.strptime(str(x), "%m").strftime("%B"))
+            # Convert month integer to month name, ensuring month is valid
+            monthly_data['Month_Name'] = monthly_data['Month'].apply(lambda x: datetime.strptime(str(x), "%m").strftime("%B") if x in range(1, 13) else "Unknown")
             fig = px.line(monthly_data, x='Month_Name', y=metric, 
                          title=f"Average {metric} by Month",
                          text=monthly_data[metric].round(2).astype(str))
