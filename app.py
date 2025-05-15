@@ -589,27 +589,27 @@ def monthly_costing():
             with col3:
                 st.metric("Median", f"${filtered_data[metric].median():,.2f}")
 
-            # # Trend Chart
-            # st.subheader(f"{metric} Trend")
-            # trend_data = filtered_data.groupby(['Year', 'Month'])[metric].sum().reset_index()
-            # trend_data['Date'] = pd.to_datetime(trend_data[['Year', 'Month']].assign(DAY=1))
-            # fig = px.line(trend_data, x='Date', y=metric, title=f"{metric} Trend Over Time",
-            #              text=trend_data[metric].round(2).astype(str))
-            # fig.update_traces(
-            #     textposition="top center",
-            #     textfont=dict(
-            #         size=14,
-            #         color='black',
-            #         family="Arial Black"
-            #     )
-            # )
-            # fig.update_layout(
-            #     yaxis_title=f"Total {metric}",
-            #     xaxis_title="Date",
-            #     showlegend=True,
-            #     font=dict(size=14)
-            # )
-            # st.plotly_chart(fig, use_container_width=True)
+            # Trend Chart
+            st.subheader(f"{metric} Trend")
+            trend_data = filtered_data.groupby(['Year', 'Month'])[metric].sum().reset_index()
+            trend_data['Date'] = pd.to_datetime(trend_data[['Year', 'Month']].assign(DAY=1))
+            fig = px.line(trend_data, x='Date', y=metric, title=f"{metric} Trend Over Time",
+                         text=trend_data[metric].round(2).astype(str))
+            fig.update_traces(
+                textposition="top center",
+                textfont=dict(
+                    size=14,
+                    color='black',
+                    family="Arial Black"
+                )
+            )
+            fig.update_layout(
+                yaxis_title=f"Total {metric}",
+                xaxis_title="Date",
+                showlegend=True,
+                font=dict(size=14)
+            )
+            st.plotly_chart(fig, use_container_width=True)
 
         with material_tab:
             st.subheader("Material Change Analysis")
