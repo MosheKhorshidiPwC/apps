@@ -120,14 +120,14 @@ def home():
 def mapping_data(file_key, expected_columns, mapping_key, uploaded_key):
     uploaded_file = st.file_uploader(f"**Upload file for {file_key}**", type=["csv", "xls", "xlsx", "txt"], key=file_key)
 
-    # Define date format options
+    # Define date format options with examples
     date_format_options = {
-        "YYYY-MM-DD": "%Y-%m-%d",
-        "DD-MM-YYYY": "%d-%m-%Y",
-        "MM-DD-YYYY": "%m-%d-%Y",
-        "DD/MM/YYYY": "%d/%m/%Y",
-        "MM/DD/YYYY": "%m/%d/%Y",
-        "YYYY/MM/DD": "%Y/%m/%d"
+        "YYYY-MM-DD": {"format": "%Y-%m-%d", "example": "2024-03-21"},
+        "DD-MM-YYYY": {"format": "%d-%m-%Y", "example": "21-03-2024"},
+        "MM-DD-YYYY": {"format": "%m-%d-%Y", "example": "03-21-2024"},
+        "DD/MM/YYYY": {"format": "%d/%m/%Y", "example": "21/03/2024"},
+        "MM/DD/YYYY": {"format": "%m/%d/%Y", "example": "03/21/2024"},
+        "YYYY/MM/DD": {"format": "%Y/%m/%d", "example": "2024/03/21"}
     }
 
     if uploaded_file or st.session_state.get(uploaded_key):
@@ -172,6 +172,7 @@ def mapping_data(file_key, expected_columns, mapping_key, uploaded_key):
                                 f"Date format for '{expected_column}':",
                                 options=list(date_format_options.keys()),
                                 index=list(date_format_options.keys()).index(current_date_format),
+                                help=f"Example: {date_format_options[current_date_format]['example']}",
                                 key=f"date_format_{file_key}_{expected_column}"
                             )
                             st.session_state.setdefault(f"{mapping_key}_date_formats", {})[expected_column] = selected_date_format
@@ -186,16 +187,29 @@ def mapping_data(file_key, expected_columns, mapping_key, uploaded_key):
                 # Ensure none of the mappings are placeholders before proceeding
                 if all(col != "Select column from list" for col in st.session_state[mapping_key].values()):
                     column_mapping = {val: key for key, val in st.session_state[mapping_key].items()}
+                    df_mapped = df.copy()  # Create a copy to avoid modifying original data
                     
                     # Convert date columns using selected formats
                     try:
                         for expected_column in date_related_columns:
                             if expected_column in column_mapping:
                                 original_column = [k for k, v in column_mapping.items() if v == expected_column][0]
-                                date_format = date_format_options[st.session_state[f"{mapping_key}_date_formats"][expected_column]]
-                                df[original_column] = pd.to_datetime(df[original_column], format=date_format)
+                                selected_format = st.session_state[f"{mapping_key}_date_formats"][expected_column]
+                                date_format = date_format_options[selected_format]["format"]
+                                
+                                # Convert to datetime using the selected format
+                                df_mapped[original_column] = pd.to_datetime(df[original_column], format=date_format, errors='coerce')
+                                
+                                # Show sample of original and converted dates
+                                st.write(f"**Converting {original_column} to {expected_column}**")
+                                sample_df = pd.DataFrame({
+                                    'Original': df[original_column].head(),
+                                    'Converted': df_mapped[original_column].head().dt.strftime('%Y-%m-%d')
+                                })
+                                st.write(sample_df)
                         
-                        df_mapped = df.rename(columns=column_mapping)
+                        # Rename columns after conversion
+                        df_mapped = df_mapped.rename(columns=column_mapping)
                         st.session_state[f'{file_key}_df_mapped'] = df_mapped
 
                         if set(expected_columns).issubset(df_mapped.columns):
@@ -207,7 +221,7 @@ def mapping_data(file_key, expected_columns, mapping_key, uploaded_key):
                             for date_col in date_related_columns:
                                 if date_col in df_mapped.columns:
                                     st.write(f"**{date_col}** (first 5 rows):")
-                                    st.write(df_mapped[date_col].head())
+                                    st.write(df_mapped[date_col].dt.strftime('%Y-%m-%d').head())
                         else:
                             st.error(f"Mapping failed. Ensure all required columns are correctly mapped.")
                             st.session_state[f'{file_key}_mapping_done'] = False
