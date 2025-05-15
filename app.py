@@ -216,7 +216,10 @@ def mapping_data(file_key, expected_columns, mapping_key, uploaded_key):
                                 "MM-DD-YYYY",
                                 "DD/MM/YYYY",
                                 "MM/DD/YYYY",
-                                "YYYY/MM/DD"
+                                "YYYY/MM/DD",
+                                "YYYY.MM.DD",
+                                "DD.MM.YYYY",
+                                "MM.DD.YYYY"
                             ],
                             index=0 if current_format == "Select format" else [None, "YYYY-MM-DD", "DD-MM-YYYY", "MM-DD-YYYY", "DD/MM/YYYY", "MM/DD/YYYY", "YYYY/MM/DD"].index(current_format),
                             key=f"date_format_standalone_{file_key}_{date_col}"
@@ -235,7 +238,7 @@ def mapping_data(file_key, expected_columns, mapping_key, uploaded_key):
                 st.write(f"Map Your {file_key.capitalize()} Data Columns:")
 
                 # Add a placeholder to column options
-                columns_with_placeholder = ["Select column from list"] + list(df.columns)
+                columns_with_placeholder = ['Not Selected'] + list(df.columns)
 
                 # Track if all required selections are made
                 all_selections_valid = True
