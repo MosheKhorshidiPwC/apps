@@ -120,16 +120,6 @@ def home():
 def mapping_data(file_key, expected_columns, mapping_key, uploaded_key):
     uploaded_file = st.file_uploader(f"**Upload file for {file_key}**", type=["csv", "xls", "xlsx", "txt"], key=file_key)
 
-    # Define date format options
-    date_format_options = {
-        "YYYY-MM-DD": "%Y-%m-%d",
-        "DD-MM-YYYY": "%d-%m-%Y",
-        "MM-DD-YYYY": "%m-%d-%Y",
-        "DD/MM/YYYY": "%d/%m/%Y",
-        "MM/DD/YYYY": "%m/%d/%Y",
-        "YYYY/MM/DD": "%Y/%m/%d"
-    }
-
     if uploaded_file or st.session_state.get(uploaded_key):
         if uploaded_file:
             st.session_state[uploaded_key] = uploaded_file
@@ -141,9 +131,9 @@ def mapping_data(file_key, expected_columns, mapping_key, uploaded_key):
             st.subheader(f"Total records in uploaded file (Completeness check): {len(df)}")
             st.write(f"***Preview of Uploaded {file_key.capitalize()} Data***", df.head())
 
+
             if mapping_key not in st.session_state:
                 st.session_state[mapping_key] = {col: None for col in expected_columns}
-                st.session_state[f"{mapping_key}_date_formats"] = {}  # Store date formats
 
             with st.form(key=f'{file_key}_mapping_form'):
                 st.write(f"Map Your {file_key.capitalize()} Data Columns:")
@@ -152,29 +142,15 @@ def mapping_data(file_key, expected_columns, mapping_key, uploaded_key):
                 columns_with_placeholder = ["Select column from list"] + list(df.columns)
 
                 for expected_column in expected_columns:
-                    col1, col2 = st.columns([2, 1])
+                    current_mapping = st.session_state[mapping_key].get(expected_column, "Select column from list")
                     
-                    with col1:
-                        current_mapping = st.session_state[mapping_key].get(expected_column, "Select column from list")
-                        selected_column = st.selectbox(
-                            f"Select relevant column for '{expected_column}':",
-                            options=columns_with_placeholder,
-                            index=columns_with_placeholder.index(current_mapping) if current_mapping in columns_with_placeholder else 0,
-                            key=f"select_{file_key}_{expected_column}"
-                        )
-
-                    # Show date format selector only for date-related columns
-                    date_related_columns = ['Payment Date', 'Employee Start Date', 'Employee End Date']
-                    if expected_column in date_related_columns:
-                        with col2:
-                            current_date_format = st.session_state.get(f"{mapping_key}_date_formats", {}).get(expected_column, "YYYY-MM-DD")
-                            selected_date_format = st.selectbox(
-                                f"Date format for '{expected_column}':",
-                                options=list(date_format_options.keys()),
-                                index=list(date_format_options.keys()).index(current_date_format),
-                                key=f"date_format_{file_key}_{expected_column}"
-                            )
-                            st.session_state.setdefault(f"{mapping_key}_date_formats", {})[expected_column] = selected_date_format
+                    selected_column = st.selectbox(
+                        f"Select relevant column for '{expected_column}':",
+                        options=columns_with_placeholder,
+                        index=columns_with_placeholder.index(current_mapping) if current_mapping in columns_with_placeholder else 0,
+                        key=f"select_{file_key}_{expected_column}",
+                        
+                    )
 
                     # Only update session state if a valid column is selected
                     if selected_column != "Select column from list":
@@ -186,33 +162,14 @@ def mapping_data(file_key, expected_columns, mapping_key, uploaded_key):
                 # Ensure none of the mappings are placeholders before proceeding
                 if all(col != "Select column from list" for col in st.session_state[mapping_key].values()):
                     column_mapping = {val: key for key, val in st.session_state[mapping_key].items()}
-                    
-                    # Convert date columns using selected formats
-                    try:
-                        for expected_column in date_related_columns:
-                            if expected_column in column_mapping:
-                                original_column = [k for k, v in column_mapping.items() if v == expected_column][0]
-                                date_format = date_format_options[st.session_state[f"{mapping_key}_date_formats"][expected_column]]
-                                df[original_column] = pd.to_datetime(df[original_column], format=date_format)
-                        
-                        df_mapped = df.rename(columns=column_mapping)
-                        st.session_state[f'{file_key}_df_mapped'] = df_mapped
+                    df_mapped = df.rename(columns=column_mapping)
+                    st.session_state[f'{file_key}_df_mapped'] = df_mapped
 
-                        if set(expected_columns).issubset(df_mapped.columns):
-                            st.success(f"{file_key.capitalize()} Column mapping successful!")
-                            st.session_state[f'{file_key}_mapping_done'] = True
-                            
-                            # Show preview of mapped date columns
-                            st.subheader("Preview of Mapped Date Columns")
-                            for date_col in date_related_columns:
-                                if date_col in df_mapped.columns:
-                                    st.write(f"**{date_col}** (first 5 rows):")
-                                    st.write(df_mapped[date_col].head())
-                        else:
-                            st.error(f"Mapping failed. Ensure all required columns are correctly mapped.")
-                            st.session_state[f'{file_key}_mapping_done'] = False
-                    except Exception as e:
-                        st.error(f"Error processing dates: {str(e)}")
+                    if set(expected_columns).issubset(df_mapped.columns):
+                        st.success(f"{file_key.capitalize()} Column mapping successful!")
+                        st.session_state[f'{file_key}_mapping_done'] = True
+                    else:
+                        st.error(f"Mapping failed. Ensure all required columns are correctly mapped.")
                         st.session_state[f'{file_key}_mapping_done'] = False
                 else:
                     st.error("Please complete all column mappings before submitting.")
