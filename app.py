@@ -535,18 +535,18 @@ def monthly_costing():
                 years = st.multiselect(
                     "Select Years",
                     options=sorted(monthly_df_mapped['Year'].unique()),
-                    default=sorted(monthly_df_mapped['Year'].unique())[-2:]
+                    default=[]
                 )
                 months = st.multiselect(
                     "Select Months",
                     options=range(1, 13),
-                    default=range(1, 13),
+                    default=[],
                     format_func=lambda x: datetime.strptime(str(x), "%m").strftime("%B")
                 )
                 departments = st.multiselect(
                     "Select Departments",
                     options=monthly_df_mapped['Department'].unique(),
-                    default=monthly_df_mapped['Department'].unique()
+                    default=[]
                 )
             
             with col2:
