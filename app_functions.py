@@ -55,15 +55,16 @@ def load_data(file):
             st.error("Failed to read the file content. It might be empty, removed from the application or improperly formatted.")
             return None
 
+        # Add index if not present
         if '#' not in data.columns:
             data['Index'] = range(1, len(data) + 1)
             data.set_index('Index', inplace=True)
 
+        return data
+
     except Exception as e:
         st.error(f"An error occurred while reading the file: {e}")
         return None
-
-    return data
 
 # function for data types 
 
