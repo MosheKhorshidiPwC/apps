@@ -208,7 +208,7 @@ def mapping_data(file_key, expected_columns, mapping_key, uploaded_key):
                         st.markdown(f"**{date_col} Format**")
                         current_format = st.session_state['date_formats'].get(date_col, "Select format")
                         date_format = st.selectbox(
-                            "Select date format:",
+                            "Select your file date format:",
                             options=[
                                 "Select format",
                                 "YYYY-MM-DD",
@@ -563,7 +563,7 @@ def monthly_costing():
         )
         
         # Display sample of calculations based on user input
-        st.write(f"Sample Calculations (First {sample_size} records):")
+        st.write(f"Sample Calculations (Random {sample_size} records):")
         
         # Let user select which columns to display
         display_columns = st.multiselect(
@@ -577,7 +577,8 @@ def monthly_costing():
             display_columns = filtered_df.columns.tolist()
         
         if display_columns:
-            sample_df = filtered_df[display_columns].head(sample_size)
+            # Use sample() instead of head() to get random rows
+            sample_df = filtered_df[display_columns].sample(n=sample_size, random_state=42)
             
             # Format date columns according to user's preference
             if 'Payment Date' in display_columns and 'date_formats' in st.session_state:
