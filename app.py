@@ -563,7 +563,7 @@ def monthly_costing():
         )
         
         # Display sample of calculations based on user input
-        st.write(f"Sample Calculations (Random {sample_size} records):")
+        st.write(f"Sample Calculations (First {sample_size} records):")
         
         # Let user select which columns to display
         display_columns = st.multiselect(
@@ -577,8 +577,7 @@ def monthly_costing():
             display_columns = filtered_df.columns.tolist()
         
         if display_columns:
-            # Use sample() instead of head() to get random rows
-            sample_df = filtered_df[display_columns].sample(n=sample_size, random_state=42)
+            sample_df = filtered_df[display_columns].head(sample_size)
             
             # Format date columns according to user's preference
             if 'Payment Date' in display_columns and 'date_formats' in st.session_state:
@@ -666,7 +665,7 @@ def monthly_costing():
                 december_data['Salary'] = pd.to_numeric(december_data['Salary'], errors='coerce')
                 december_data['Income Tax Deduction'] = pd.to_numeric(december_data['Income Tax Deduction'], errors='coerce')
                 december_data['National Insurance'] = pd.to_numeric(december_data['National Insurance'], errors='coerce')
-            
+        
                 total_salaries = december_data['Salary'].sum()
                 total_income_tax = december_data['Income Tax Deduction'].sum()
                 total_national_insurance = december_data['National Insurance'].sum()
@@ -674,14 +673,14 @@ def monthly_costing():
                 summary_data = pd.DataFrame({
                     'Description': ['Total Salaries', 'Total Income Tax Deductions', 'Total National Insurance'],
                     'Amount': [total_salaries, total_income_tax, total_national_insurance]
-                    })
+                })
             
-            # Format numbers with commas for thousands
+                # Format numbers with commas for thousands
                 def format_number(x):
-                        try:
-                            return f"{float(x):,.2f}"
-                        except (ValueError, TypeError):
-                            return str(x)
+                    try:
+                        return f"{float(x):,.2f}"
+                    except (ValueError, TypeError):
+                        return str(x)
                     
                 summary_data['Amount'] = summary_data['Amount'].apply(format_number)
                     
@@ -689,15 +688,16 @@ def monthly_costing():
 
                 # Export to Excel with formatted dates
                 december_samples_dict = {
-                        "Relevant December Data": december_data,
-                "December Payment Summary": summary_data,
-                    } 
+                    "Relevant December Data": december_data,
+                    "December Payment Summary": summary_data,
+                } 
+            
                 excel_data = af.export_to_excel(december_samples_dict)
                 st.download_button(
-                "Download December Payment Summary",
-                data=excel_data,
-                file_name="december_payment_summary.xlsx",
-                mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+                    "Download December Payment Summary",
+                    data=excel_data,
+                    file_name="december_payment_summary.xlsx",
+                    mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
     with st.expander("***Financial Analysis Year-over-Year***"):
         # Create a copy of the dataframe for display purposes
@@ -994,44 +994,144 @@ def monthly_costing():
                 "text/csv"
             )
 
+
 def annual_costing(): 
+
     st.subheader("Annual Costing Analysis")
 
+    # Ensure the user has completed data mapping before proceeding
     if not st.session_state.get('annual_mapping_done', False):
         st.warning("Please complete the annual data mapping before proceeding.")
         st.stop()
 
+    # Load mapped data from session state
     annual_df_mapped = st.session_state.get('annual_df_mapped')
 
     if annual_df_mapped is not None:
-        # Convert Start and End dates using user's selected format
-        if 'date_formats' in st.session_state:
-            
-            try:
-                if 'Employee Start Date' in st.session_state.date_formats:
-                    start_format = st.session_state.date_formats['Employee Start Date'].replace("YYYY", "%Y").replace("MM", "%m").replace("DD", "%d")
-                    annual_df_mapped['Employee Start Date'] = pd.to_datetime(annual_df_mapped['Employee Start Date'], format=start_format)
-                
-                if 'Employee End Date' in st.session_state.date_formats:
-                    end_format = st.session_state.date_formats['Employee End Date'].replace("YYYY", "%Y").replace("MM", "%m").replace("DD", "%d")
-                    annual_df_mapped['Employee End Date'] = pd.to_datetime(annual_df_mapped['Employee End Date'], format=end_format)
-             
-            except Exception as e:
-                    st.error(f"Error converting dates: {str(e)}")
-                    st.stop()
 
-        # Rest of your existing annual_costing code...
-        # ... (keep all the existing code, just add date format handling where dates are displayed)
+        # KPI calculations 
+        left_column, center_column, right_column = st.columns(3)
+        total_records = len(annual_df_mapped)
+        total_distinct_records = annual_df_mapped.drop_duplicates().shape[0]
+        avg_total_pay = annual_df_mapped['Total Payments'].mean()
+        mid_total_pay = annual_df_mapped['Total Payments'].median()
+        total_unique_employee_number = annual_df_mapped['Employee ID'].nunique()
 
-    # In annual_costing function, update the Employee Sampling section
+        # Assume the user has already uploaded data and loaded it into session state
+        if 'annual_df_mapped' in st.session_state:
+            df = st.session_state['annual_df_mapped']
+
+            # Ensure date columns are parsed correctly
+            df['Employee Start Date'] = pd.to_datetime(df['Employee Start Date'], errors='coerce')
+            df['Employee End Date'] = pd.to_datetime(df['Employee End Date'], errors='coerce')
+
+            # If you are calculating these numbers from the DataFrame, example:
+            total_employees_end_year = df[df['Employee End Date'].isna()]['Employee ID'].nunique()
+            total_employees_left = df[df['Employee End Date'].notna()]['Employee ID'].nunique()
+            total_new_employees = df[df['Employee Start Date'] > pd.Timestamp(year=pd.to_datetime('today').year - 1, month=12, day=31)]['Employee ID'].nunique()
+
+            kpi_data = {
+            'Description KPI': [
+                'Total Records',
+                'Total Distinct Records',
+                'Total Unique Employees',
+                'Average Employee Cost',
+                'Median Employee Cost',
+                'Total Employees at End of Year',
+                'Total Employees Left During Year',
+                'Total New Employees This Year'
+            ],
+            'KPI Number': [
+                total_records,
+                total_distinct_records,
+                total_unique_employee_number,
+                round(avg_total_pay, 3),
+                round(mid_total_pay, 3),
+                total_employees_end_year,
+                total_employees_left,
+                total_new_employees
+            ]
+        }
+
+            st.subheader("Summary table")
+            kpi_summary_df = pd.DataFrame(kpi_data)
+            st.write(kpi_summary_df.style.format({'KPI Number':'{:,}'}))
+
+            # Proceed with other analyses, visualizations, or download options
+        else:
+            st.error("No annual data mapped. Please upload and map your data first.")       
+
+        # Visualization and charts
+        with left_column:
+            df_for_first_pie = annual_df_mapped[['Department', 'Total Payments']]
+            fig = px.pie(df_for_first_pie, values='Total Payments', names='Department', title='Total Payments by Department')
+            fig.update_traces(
+                textinfo='percent+label',
+                hoverinfo='percent+label',
+                insidetextorientation='horizontal',
+                outsidetextfont=dict(size=15, color='black'),
+                insidetextfont=dict(size=15, color='white')
+            )
+            fig.update_layout(uniformtext_minsize=15, uniformtext_mode='show')
+            st.plotly_chart(fig)
+            file_download_first_pie = af.convert_df_utf(df_for_first_pie)
+            st.download_button("Download result for first pie", file_download_first_pie, "result_first_pie_chart.csv", "csv", key='download-first-pie-file')
+
+        with center_column:
+            df_for_second_pie = annual_df_mapped[['Department', 'Employee ID']].drop_duplicates()
+            department_counts = df_for_second_pie['Department'].value_counts()
+            total_employees = department_counts.sum()
+            department_percentages = (department_counts / total_employees) * 100
+
+            labels = [f"{department} ({count} employees, {percentage:.2f} %)" for department, count, percentage in zip(department_counts.index, department_counts.values, department_percentages.values)]
+            fig = px.pie(values=department_counts.values, names=department_counts.index, title='Employee Distribution by Department', labels=labels)
+            fig.update_traces(textinfo='percent+text+value')
+            st.plotly_chart(fig)
+            file_download_second_pie = af.convert_df(department_percentages)
+            st.download_button("Download result for second pie", file_download_second_pie, "result_second_pie_chart.csv", "text/csv", key='download-second-pie-file')
+        
+        with st.expander("***Check Percent Difference for employee***"):
+        # Employee analysis based on percentage difference
+            st.subheader("Check Percent Difference for employee")
+            annual_df_mapped['Percentage Difference'] = annual_df_mapped['Total Payments'].ffill().pct_change()
+            employee_selection = st.selectbox('Choose employee to analyze:', options=annual_df_mapped['Employee ID'].unique(), placeholder='Choose employee number')
+
+            df_for_emp_analysis = annual_df_mapped[['Employee ID', 'Percentage Difference', 'Total Payments']]
+            df_filtered = df_for_emp_analysis[df_for_emp_analysis['Employee ID'] == employee_selection]
+            df_filtered = df_filtered.rename_axis('Row Number in File', axis=0)
+            df_filtered['Table_Row_Number'] = df_filtered.reset_index().index + 1
+
+            st.subheader("***See employee related analysis***")
+            st.table(df_filtered[['Table_Row_Number', 'Employee ID', 'Total Payments', 'Percentage Difference']])
+            df_chart = df_filtered.set_index('Table_Row_Number')[['Total Payments']]
+            st.bar_chart(df_chart, use_container_width=True)
+            st.line_chart(df_chart)
+
+        # Ranking employees based on salary
+        
+        
+        try:
+
+            with st.expander("***Click to see employee salary ranking***"):
+
+                st.subheader("Highest Ranking Employee Annual Salaries")
+
+                ranked_df = annual_df_mapped.groupby('Employee ID')['Total Payments'].max().reset_index()
+                ranked_df = ranked_df.sort_values(by='Total Payments', ascending=False).reset_index(drop=True)
+                ranked_df['Rank'] = range(1, len(ranked_df) + 1)
+                limit_rank = st.selectbox("Choose rank Size/Range", options=ranked_df['Rank'], placeholder="choose rank range")
+                ranked_df_filtered = ranked_df[ranked_df['Rank'] <= limit_rank]
+                st.table(ranked_df_filtered[['Rank', 'Employee ID', 'Total Payments']])
+                st.bar_chart(ranked_df_filtered.set_index('Rank')['Total Payments'])
+                ranking_file_download = af.convert_df(ranked_df_filtered)
+                st.download_button("Download ranking result", ranking_file_download, "ranking_result.csv", "text/csv", key='download-ranking-file')
+        
+        except Exception as e:
+            st.info("Result will be presented after uploading a data file or on error.")
+
         with st.expander("***Employee Sampling Based on Status***"):
+            # New functionality for employee categorization and sampling
             st.subheader("Employee Sampling Based on Status")
-
-        # Format dates for display
-        if 'Employee Start Date' in annual_df_mapped.columns:
-            annual_df_mapped['Employee Start Date_Display'] = format_date_column(annual_df_mapped, 'Employee Start Date')
-        if 'Employee End Date' in annual_df_mapped.columns:
-            annual_df_mapped['Employee End Date_Display'] = format_date_column(annual_df_mapped, 'Employee End Date')
 
             # Categorizing employees based on status
             year_end = pd.Timestamp(year=pd.to_datetime('today').year, month=12, day=31)
@@ -1050,24 +1150,307 @@ def annual_costing():
             sampled_left = left_employees.sample(min(sample_left, len(left_employees)))
             sampled_new = new_employees.sample(min(sample_new, len(new_employees)))
 
-            # Use display columns for the samples
-            display_columns = [col for col in annual_df_mapped.columns if not col.endswith('_Display')] + \
-                            [col for col in annual_df_mapped.columns if col.endswith('_Display')]
-
-        # Export to Excel with formatted dates
+            # Export to Excel
             samples_dict = {
-            "Active Employees": sampled_active[display_columns],
-            "Left Employees": sampled_left[display_columns],
-            "New Employees": sampled_new[display_columns]
+                "Active Employees": sampled_active,
+                "Left Employees": sampled_left,
+                "New Employees": sampled_new
             }
 
             excel_data = af.export_to_excel(samples_dict)
+            st.download_button("Download Employee Samples", data=excel_data, file_name="employee_samples.xlsx", mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+
+    with st.expander("***Financial Analysis Year-over-Year***"):
+        if 'annual_df_mapped' not in st.session_state:
+            st.warning("No monthly data mapped. Please upload and map your data first.")
+            st.stop()
+
+        annual_df_mapped = st.session_state['annual_df_mapped']
+        annual_df_mapped['Employee Start Date'] = pd.to_datetime(annual_df_mapped['Employee Start Date'], errors='coerce')
+        annual_df_mapped['Year'] = annual_df_mapped['Employee Start Date'].dt.year
+        annual_df_mapped['Month'] = annual_df_mapped['Employee Start Date'].dt.month
+
+        # Quick Overview Section
+        st.subheader("📊 Quick Overview")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Total Years", annual_df_mapped['Year'].nunique())
+        with col2:
+            st.metric("Average Monthly Cost", f"${annual_df_mapped['Total Payments'].mean():,.2f}")
+        with col3:
+            st.metric("Total Employees", annual_df_mapped['Employee ID'].nunique())
+
+        # Analysis Tabs
+        analysis_tab, material_tab, trends_tab = st.tabs(["📈 Analysis", "🔍 Material Changes", "📊 Trends"])
+
+        with analysis_tab:
+            # Filter Section
+            st.subheader("Filter Data")
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                years = st.multiselect(
+                    "Select Years",
+                    options=sorted(annual_df_mapped['Year'].unique()),
+                    default=sorted(annual_df_mapped['Year'].unique())[-2:]
+                )
+                months = st.multiselect(
+                    "Select Months",
+                    options=range(1, 13),
+                    default=range(1, 13),
+                    format_func=lambda x: datetime.strptime(str(x), "%m").strftime("%B")
+                )
+                departments = st.multiselect(
+                    "Select Departments",
+                    options=annual_df_mapped['Department'].unique(),
+                    default=annual_df_mapped['Department'].unique()
+                )
+            
+            with col2:
+                employees = st.multiselect(
+                    "Select Employees",
+                    options=annual_df_mapped['Employee ID'].unique(),
+                    default=[]
+                )
+                metric = st.selectbox(
+                    "Select Metric",
+                    options=['Total Payments']
+                )
+
+            # Apply filters
+            filtered_data = annual_df_mapped.copy()
+            if years:
+                filtered_data = filtered_data[filtered_data['Year'].isin(years)]
+            if months:
+                filtered_data = filtered_data[filtered_data['Month'].isin(months)]
+            if departments:
+                filtered_data = filtered_data[filtered_data['Department'].isin(departments)]
+            if employees:
+                filtered_data = filtered_data[filtered_data['Employee ID'].isin(employees)]
+
+            # Display filtered data
+            st.subheader("Filtered Data")
+            st.dataframe(filtered_data, use_container_width=True)
+
+            # Summary Metrics
+            st.subheader("Summary Metrics")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Total", f"${filtered_data[metric].sum():,.2f}")
+            with col2:
+                st.metric("Average", f"${filtered_data[metric].mean():,.2f}")
+            with col3:
+                st.metric("Median", f"${filtered_data[metric].median():,.2f}")
+
+            # Trend Chart
+            st.subheader(f"{metric} Trend")
+            trend_data = filtered_data.groupby(['Year', 'Month'])[metric].sum().reset_index()
+            trend_data['Date'] = pd.to_datetime(trend_data[['Year', 'Month']].assign(DAY=1))
+            fig = px.line(trend_data, x='Date', y=metric, title=f"{metric} Trend Over Time",
+                         text=trend_data[metric].round(2).astype(str))
+            fig.update_traces(
+                textposition="top center",
+                textfont=dict(
+                    size=14,
+                    color='black',
+                    family="Arial Black"
+                )
+            )
+            fig.update_layout(
+                yaxis_title=f"Total {metric}",
+                xaxis_title="Date",
+                showlegend=True,
+                font=dict(size=14)
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+        with material_tab:
+            st.subheader("Material Change Analysis")
+            
+            # Analysis method selection
+            analysis_method = st.radio(
+                "Select Analysis Method",
+                ["Percentage Change", "Absolute Amount"],
+                horizontal=True
+            )
+
+            if analysis_method == "Percentage Change":
+                threshold = st.number_input(
+                    "Enter percentage threshold for material changes",
+                    min_value=0.0,
+                    max_value=100.0,
+                    value=10.0,
+                    step=0.1,
+                    format="%.1f"
+                )
+                threshold_type = "percentage"
+            else:
+                threshold = st.number_input(
+                    "Enter amount threshold in shekels",
+                    min_value=0.0,
+                    value=1000.0,
+                    step=100.0,
+                    format="%.0f"
+                )
+                threshold_type = "amount"
+
+            # Calculate changes per employee
+            filtered_data = filtered_data.sort_values(['Employee ID', 'Employee Start Date'])
+            
+            # Calculate changes for each employee separately
+            employee_changes = []
+            for emp_id in filtered_data['Employee ID'].unique():
+                emp_data = filtered_data[filtered_data['Employee ID'] == emp_id].copy()
+                emp_data['Change'] = emp_data[metric].pct_change() * 100
+                emp_data['Absolute Change'] = emp_data[metric].diff()
+                employee_changes.append(emp_data)
+            
+            # Combine all employee changes
+            all_changes = pd.concat(employee_changes)
+            
+            # Identify material changes
+            if threshold_type == "percentage":
+                material_changes = all_changes[abs(all_changes['Change']) > threshold]
+            else:
+                material_changes = all_changes[abs(all_changes['Absolute Change']) > threshold]
+
+            # Display material changes
+            st.subheader("Material Changes by Employee")
+            
+            if not material_changes.empty:
+                # Create tabs for each employee with material changes
+                employee_tabs = st.tabs([f"Employee {emp_id}" for emp_id in material_changes['Employee ID'].unique()])
+                
+                for tab, emp_id in zip(employee_tabs, material_changes['Employee ID'].unique()):
+                    with tab:
+                        emp_material_changes = material_changes[material_changes['Employee ID'] == emp_id]
+                        
+                        # Calculate summary statistics for this employee
+                        total_changes = len(emp_material_changes)
+                        avg_change = emp_material_changes['Change'].mean() if threshold_type == "percentage" else emp_material_changes['Absolute Change'].mean()
+                        
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.metric("Total Material Changes", total_changes)
+                        with col2:
+                            st.metric("Average Change", 
+                                    f"{avg_change:.2f}%" if threshold_type == "percentage" else f"₪{avg_change:,.2f}")
+                        
+                        # Style the dataframe
+                        def highlight_material_changes(row):
+                            if threshold_type == "percentage":
+                                change = row['Change']
+                            else:
+                                change = row['Absolute Change']
+                            
+                            if abs(change) > threshold:
+                                return ['background-color: #ffcccc'] * len(row)
+                            return [''] * len(row)
+
+                        styled_df = emp_material_changes.style.apply(highlight_material_changes, axis=1)
+                        st.dataframe(styled_df, use_container_width=True)
+                        
+                        # Add a line chart for this employee's changes
+                        fig = px.line(emp_material_changes, 
+                                    x='Employee Start Date', 
+                                    y=metric,
+                                    title=f"{metric} Trend for Employee {emp_id}",
+                                    text=emp_material_changes[metric].round(2).astype(str))
+                        fig.update_traces(
+                            textposition="top center",
+                            textfont=dict(
+                                size=14,
+                                color='black',
+                                family="Arial Black"
+                            )
+                        )
+                        fig.update_layout(
+                            yaxis_title=f"{metric}",
+                            xaxis_title="Date",
+                            showlegend=True,
+                            font=dict(size=14)
+                        )
+                        st.plotly_chart(fig, use_container_width=True)
+
+                # Download all material changes
+                st.download_button(
+                    "Download All Material Changes",
+                    material_changes.to_csv(index=False),
+                    "material_changes.csv",
+                    "text/csv"
+                )
+            else:
+                st.info("No material changes found based on the selected threshold.")
+
+        with trends_tab:
+            # Department Analysis
+            st.subheader("Department Analysis")
+            dept_data = filtered_data.groupby(['Year', 'Department'])[metric].sum().reset_index()
+            fig = px.bar(dept_data, x='Year', y=metric, color='Department', 
+                        title=f"{metric} by Department",
+                        text=dept_data[metric].round(2).astype(str))
+            fig.update_traces(
+                textposition="outside",
+                textfont=dict(
+                    size=14,
+                    color='black',
+                    family="Arial Black"
+                )
+            )
+            fig.update_layout(
+                yaxis_title=f"Total {metric}",
+                xaxis_title="Year",
+                showlegend=True,
+                uniformtext_minsize=14,
+                uniformtext_mode='hide',
+                font=dict(size=14)
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+            # Monthly Analysis
+            st.subheader("Monthly Analysis")
+            monthly_data = filtered_data.groupby('Month')[metric].mean().reset_index()
+            monthly_data['Month_Name'] = monthly_data['Month'].apply(lambda x: datetime.strptime(str(x), "%m").strftime("%B"))
+            fig = px.line(monthly_data, x='Month_Name', y=metric, 
+                         title=f"Average {metric} by Month",
+                         text=monthly_data[metric].round(2).astype(str))
+            fig.update_traces(
+                textposition="top center",
+                textfont=dict(
+                    size=14,
+                    color='black',
+                    family="Arial Black"
+                )
+            )
+            fig.update_layout(
+                yaxis_title=f"Average {metric}",
+                xaxis_title="Month",
+                showlegend=True,
+                xaxis={'categoryorder': 'array', 'categoryarray': [datetime.strptime(str(m), "%m").strftime("%B") for m in range(1, 13)],
+                       'tickfont': dict(size=14)},
+                font=dict(size=14)
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+        # Download Options
+        st.subheader("Download Data")
+        col1, col2 = st.columns(2)
+        with col1:
             st.download_button(
-            "Download Employee Samples",
-            data=excel_data,
-            file_name="employee_samples.xlsx",
-            mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        )
+                "Download Filtered Data",
+                filtered_data.to_csv(index=False),
+                "filtered_data.csv",
+                "text/csv"
+            )
+        with col2:
+            summary = filtered_data.groupby('Year')[metric].agg(['sum', 'mean', 'median']).reset_index()
+            st.download_button(
+                "Download Summary",
+                summary.to_csv(index=False),
+                "summary_stats.csv",
+                "text/csv"
+            )
 
 # Helper function to format dates according to user preference
 def format_date_column(df, column_name):
